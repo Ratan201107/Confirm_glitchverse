@@ -1,0 +1,424 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GLITCHPULSE: ZERO PROTOCOL · PS01 GlitchVerse</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #05070d;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #f8fafc;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    @keyframes spinSlow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spinSlow 14s linear infinite;
+    }
+    /* Custom scrollbar for modals/overlays on small screens */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 14, 23, 0.8);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.35);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden bg-black select-none">
+  <!-- Persistent 60fps HTML5 2D Canvas Container -->
+  <div id="canvas-mount" class="absolute inset-0 w-full h-full z-0"></div>
+
+  <!-- Dynamic UI Overlay Root -->
+  <div id="ui-root" class="relative z-20 w-full h-full pointer-events-none"></div>
+
+  <script>
+    // =========================================================================
+    // 1. CUSTOMIZATION & PERSISTENT STORAGE SCHEMA
+    // =========================================================================
+    const VEHICLES = [
+      { id: 'cube', name: 'Core Cube', tagline: 'Standard Vanguard Unit', unlockLevel: 1 },
+      { id: 'glider', name: 'Apex Glider', tagline: 'Anti-Grav Flight Vector', unlockLevel: 2 },
+      { id: 'wave', name: 'Razor Wave', tagline: 'Hyper-Velocity Dart', unlockLevel: 3 },
+      { id: 'droid', name: 'Glitch Droid', tagline: 'Synthesized Cyber Helm', unlockLevel: 1 },
+      { id: 'hex', name: 'Phantom Hex', tagline: 'Quantum Prism Matrix', unlockLevel: 2 },
+      { id: 'star', name: 'Pulse Star', tagline: 'Radiant Resonance Core', unlockLevel: 4 },
+    ];
+
+    const PRIMARY_COLORS = [
+      { id: 'cyan', name: 'Electric Cyan', hex: '#00f0ff', glow: 'rgba(0, 240, 255, 0.6)' },
+      { id: 'magenta', name: 'Hot Magenta', hex: '#ff0077', glow: 'rgba(255, 0, 119, 0.6)' },
+      { id: 'amber', name: 'Solar Amber', hex: '#ffaa00', glow: 'rgba(255, 170, 0, 0.6)' },
+      { id: 'emerald', name: 'Matrix Emerald', hex: '#00ff66', glow: 'rgba(0, 255, 102, 0.6)' },
+      { id: 'purple', name: 'Void Violet', hex: '#a855f7', glow: 'rgba(168, 85, 247, 0.6)' },
+      { id: 'sky', name: 'Glacier Blue', hex: '#38bdf8', glow: 'rgba(56, 189, 248, 0.6)' },
+      { id: 'white', name: 'Pure Monolith', hex: '#f8fafc', glow: 'rgba(248, 250, 252, 0.7)' },
+      { id: 'crimson', name: 'Laser Crimson', hex: '#ef4444', glow: 'rgba(239, 68, 68, 0.6)' },
+    ];
+
+    const SECONDARY_COLORS = [
+      { id: 'dark', name: 'Obsidian Shadow', hex: '#0a0e17', glow: 'rgba(10, 14, 23, 0.4)' },
+      { id: 'cyan', name: 'Cyan Accent', hex: '#00f0ff', glow: 'rgba(0, 240, 255, 0.5)' },
+      { id: 'magenta', name: 'Magenta Accent', hex: '#ff0077', glow: 'rgba(255, 0, 119, 0.5)' },
+      { id: 'amber', name: 'Amber Glow', hex: '#ffaa00', glow: 'rgba(255, 170, 0, 0.5)' },
+      { id: 'lime', name: 'Acid Lime', hex: '#a3e635', glow: 'rgba(163, 230, 53, 0.5)' },
+      { id: 'purple', name: 'Arcane Purple', hex: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.5)' },
+      { id: 'silver', name: 'Titanium Silver', hex: '#94a3b8', glow: 'rgba(148, 163, 184, 0.5)' },
+      { id: 'orange', name: 'Plasma Orange', hex: '#f97316', glow: 'rgba(249, 115, 22, 0.5)' },
+    ];
+
+    const TRAILS = [
+      { id: 'sparkle', name: 'Stardust Sparkle', desc: 'Luminescent micro-particles' },
+      { id: 'glitch', name: 'Quantum Glitch', desc: 'Fractured digital pixel ribbon' },
+      { id: 'ghost', name: 'Spectral Echo', desc: 'Chrono-lagged afterimages' },
+      { id: 'laser', name: 'Plasma Stream', desc: 'Dual-focused laser lines' },
+    ];
+
+    const DEATH_VFX = [
+      { id: 'fracture', name: 'Polygon Scatter', desc: 'Shatters into geometric shards' },
+      { id: 'shockwave', name: 'Sonic Blast', desc: 'Expanding concentric wave rings' },
+      { id: 'nova', name: 'Solar Nova', desc: 'Supercharged flash explosion' },
+    ];
+
+    const STORAGE_KEY = 'glitchpulse_profile_v2';
+
+    function getDefaultProfile() {
+      return {
+        customization: {
+          vehicle: 'cube',
+          primaryColor: '#00f0ff',
+          secondaryColor: '#0a0e17',
+          trail: 'glitch',
+          deathVfx: 'fracture',
+        },
+        levels: {
+          1: { completed: false, bestPercent: 0, attempts: 0, coins: [false, false, false], bestTime: 0, bestScore: 0 },
+          2: { completed: false, bestPercent: 0, attempts: 0, coins: [false, false, false], bestTime: 0, bestScore: 0 },
+          3: { completed: false, bestPercent: 0, attempts: 0, coins: [false, false, false], bestTime: 0, bestScore: 0 },
+          4: { completed: false, bestPercent: 0, attempts: 0, coins: [false, false, false], bestTime: 0, bestScore: 0 },
+        },
+        starsCollected: 0,
+        totalAttempts: 0,
+      };
+    }
+
+    function loadPlayerProfile() {
+      const def = getDefaultProfile();
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return def;
+        const parsed = JSON.parse(raw);
+        const mergedLevels = { ...def.levels };
+        if (parsed.levels) {
+          for (const k of [1, 2, 3, 4]) {
+            if (parsed.levels[k]) {
+              mergedLevels[k] = { ...def.levels[k], ...parsed.levels[k] };
+            }
+          }
+        }
+        return {
+          ...def,
+          ...parsed,
+          customization: { ...def.customization, ...(parsed.customization || {}) },
+          levels: mergedLevels,
+        };
+      } catch (e) {
+        return def;
+      }
+    }
+
+    function savePlayerProfile(profile) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      } catch (e) {
+        // Ignore storage errors in sandboxed iframes
+      }
+    }
+
+    // =========================================================================
+    // 2. 4 HAND-CRAFTED PROGRESSIVE LEVELS (WITH EXTENDED RUNWAY & FIXED PORTALS)
+    // =========================================================================
+    // Every level starts with a 1,100px clean runway (x = 150 to x = 1250) so
+    // players have ~2.5-2.9 seconds to orient themselves before Obstacle #1.
+    const LEVELS = [
+      // LEVEL 1: Subroutine Neon (BPM 128)
+      {
+        id: 1,
+        title: 'Subroutine Neon',
+        subtitle: 'Sector 01 · Gravity Reversal & Timing Protocol',
+        difficulty: 'Normal',
+        stars: 1,
+        bpm: 128,
+        baseSpeed: 380,
+        length: 6150,
+        floorY: 100,
+        ceilingY: 420,
+        theme: {
+          bgGradient: ['#050814', '#0d1b35'],
+          sunColors: ['#00f0ff', '#0066ff'],
+          mountainColor: '#0a192f',
+          ridgeColor: 'rgba(0, 240, 255, 0.45)',
+          gridColor: 'rgba(0, 240, 255, 0.16)',
+          ambientColor: '#00f0ff',
+          musicStyle: 'Upbeat Cyber Electro',
+        },
+        objects: [
+          // Runway: x = 150 to 1250
+          { id: 'l1_s1', type: 'spike', x: 1250, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l1_s2', type: 'spike', x: 1600, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Platform step
+          { id: 'l1_b1', type: 'block', x: 1900, y: 0, w: 140, h: 45 },
+          { id: 'l1_s3', type: 'spike', x: 2060, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Stepped platforms
+          { id: 'l1_b2', type: 'block', x: 2250, y: 0, w: 110, h: 45 },
+          { id: 'l1_b3', type: 'block', x: 2450, y: 0, w: 120, h: 90 },
+          { id: 'l1_b4', type: 'block', x: 2660, y: 0, w: 200, h: 45 },
+
+          // Secret Coin 1 (accessible via jump from l1_b4)
+          { id: 'l1_c1', type: 'coin', x: 2800, y: 125, w: 32, h: 32, coinIndex: 0 },
+
+          // Yellow Jump Pad launch over double spike
+          { id: 'l1_jp1', type: 'jump_pad', x: 3020, y: 0, w: 50, h: 15, padType: 'yellow' },
+          { id: 'l1_s5', type: 'spike', x: 3120, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l1_s6', type: 'spike', x: 3160, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Yellow Jump Ring mid-air sequence
+          { id: 'l1_s7', type: 'spike', x: 3440, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l1_jr1', type: 'jump_ring', x: 3500, y: 95, w: 44, h: 44, ringType: 'yellow' },
+          { id: 'l1_s8', type: 'spike', x: 3560, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l1_b5', type: 'block', x: 3700, y: 0, w: 180, h: 45 },
+
+          // PS01 Glitch Mechanic: GRAVITY REVERSAL PORTAL (full corridor height)
+          { id: 'l1_p_grav1', type: 'portal_gravity', x: 4000, y: 0, w: 45, h: 420, portalGravity: -1 },
+
+          // Inverted Ceiling Section
+          { id: 'l1_b_inv1', type: 'block', x: 4320, y: 375, w: 150, h: 45 },
+          { id: 'l1_s_inv1', type: 'spike', x: 4700, y: 380, w: 40, h: 40, spikeDir: 'down' },
+          { id: 'l1_jr_inv1', type: 'jump_ring', x: 4765, y: 295, w: 44, h: 44, ringType: 'yellow' },
+          { id: 'l1_s_inv2', type: 'spike', x: 4825, y: 380, w: 40, h: 40, spikeDir: 'down' },
+
+          // Secret Coin 2 (inverted ceiling jump)
+          { id: 'l1_c2', type: 'coin', x: 5000, y: 300, w: 32, h: 32, coinIndex: 1 },
+
+          // Restore Normal Gravity Portal
+          { id: 'l1_p_grav2', type: 'portal_gravity', x: 5150, y: 0, w: 45, h: 420, portalGravity: 1 },
+
+          // Finale: Stepped ascent and Secret Coin 3
+          { id: 'l1_b6', type: 'block', x: 5460, y: 0, w: 140, h: 45 },
+          { id: 'l1_b7', type: 'block', x: 5680, y: 0, w: 140, h: 85 },
+          { id: 'l1_b8', type: 'block', x: 5900, y: 0, w: 250, h: 45 },
+          { id: 'l1_c3', type: 'coin', x: 6000, y: 125, w: 32, h: 32, coinIndex: 2 },
+        ],
+      },
+
+      // LEVEL 2: Phase Shift Canyon (BPM 135)
+      {
+        id: 2,
+        title: 'Phase Shift Canyon',
+        subtitle: 'Sector 02 · Dual-Spectrum Phase & Glider Flight',
+        difficulty: 'Medium',
+        stars: 2,
+        bpm: 135,
+        baseSpeed: 420,
+        length: 6800,
+        floorY: 100,
+        ceilingY: 420,
+        theme: {
+          bgGradient: ['#11051c', '#240b38'],
+          sunColors: ['#ff0077', '#ffaa00'],
+          mountainColor: '#1a092b',
+          ridgeColor: 'rgba(255, 0, 119, 0.45)',
+          gridColor: 'rgba(255, 0, 119, 0.16)',
+          ambientColor: '#ff0077',
+          musicStyle: 'Melodic Synthwave & Bass',
+        },
+        objects: [
+          // Runway: x = 150 to 1250 (1,100px clean runway!)
+          { id: 'l2_b1', type: 'block', x: 1250, y: 0, w: 150, h: 45, phase: 'cyan' },
+          { id: 'l2_s1', type: 'spike', x: 1440, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Cyan Spectral Gate
+          { id: 'l2_pg1', type: 'portal_phase', x: 1650, y: 0, w: 40, h: 420, phase: 'cyan' },
+          // Magenta phase barrier & spikes (intangible when player is in Cyan phase, or Shift to toggle!)
+          { id: 'l2_b2', type: 'block', x: 1850, y: 0, w: 50, h: 160, phase: 'magenta' },
+          { id: 'l2_s2', type: 'spike', x: 2020, y: 0, w: 40, h: 40, spikeDir: 'up', phase: 'magenta' },
+
+          // Jump pad over Cyan phase platform (or Shift to Magenta to phase through!)
+          { id: 'l2_jp1', type: 'jump_pad', x: 2180, y: 0, w: 50, h: 15, padType: 'yellow' },
+          { id: 'l2_b3', type: 'block', x: 2320, y: 0, w: 180, h: 55, phase: 'cyan' },
+
+          // Magenta Spectral Gate
+          { id: 'l2_pg2', type: 'portal_phase', x: 2600, y: 0, w: 40, h: 420, phase: 'magenta' },
+          { id: 'l2_b3b', type: 'block', x: 2780, y: 0, w: 50, h: 160, phase: 'cyan' },
+          { id: 'l2_s3', type: 'spike', x: 2950, y: 0, w: 40, h: 40, spikeDir: 'up', phase: 'cyan' },
+
+          // Coin 1 (above pink jump pad before Glider portal)
+          { id: 'l2_jp2', type: 'jump_pad', x: 3120, y: 0, w: 50, h: 15, padType: 'pink' },
+          { id: 'l2_c1', type: 'coin', x: 3240, y: 120, w: 32, h: 32, coinIndex: 0 },
+
+          // VEHICLE TRANSFORMATION: GLIDER / SHIP MODE
+          { id: 'l2_pv1', type: 'portal_vehicle', x: 3450, y: 0, w: 45, h: 420, portalVehicle: 'glider' },
+
+          // Flight Canyon with ceiling/floor stalactites
+          { id: 'l2_s4', type: 'spike', x: 3750, y: 0, w: 50, h: 70, spikeDir: 'up' },
+          { id: 'l2_s5', type: 'spike', x: 3950, y: 350, w: 50, h: 70, spikeDir: 'down' },
+          { id: 'l2_s6', type: 'spike', x: 4200, y: 0, w: 50, h: 100, spikeDir: 'up' },
+          { id: 'l2_s7', type: 'spike', x: 4450, y: 320, w: 50, h: 100, spikeDir: 'down' },
+
+          // Glider Phase Gates in flight
+          { id: 'l2_pg3', type: 'portal_phase', x: 4700, y: 0, w: 40, h: 420, phase: 'cyan' },
+          { id: 'l2_b4', type: 'block', x: 4920, y: 0, w: 40, h: 420, phase: 'magenta' },
+          { id: 'l2_c2', type: 'coin', x: 5100, y: 200, w: 32, h: 32, coinIndex: 1 },
+
+          { id: 'l2_pg4', type: 'portal_phase', x: 5280, y: 0, w: 40, h: 420, phase: 'magenta' },
+          { id: 'l2_b5', type: 'block', x: 5500, y: 0, w: 40, h: 420, phase: 'cyan' },
+
+          // Return to Cube Vehicle Portal
+          { id: 'l2_pv2', type: 'portal_vehicle', x: 5750, y: 0, w: 45, h: 420, portalVehicle: 'cube' },
+
+          // Finale Jump Ring & Coin 3
+          { id: 'l2_s8', type: 'spike', x: 6050, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l2_jr1', type: 'jump_ring', x: 6110, y: 95, w: 44, h: 44, ringType: 'yellow' },
+          { id: 'l2_s9', type: 'spike', x: 6170, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l2_b6', type: 'block', x: 6360, y: 0, w: 320, h: 45 },
+          { id: 'l2_c3', type: 'coin', x: 6500, y: 125, w: 32, h: 32, coinIndex: 2 },
+        ],
+      },
+
+      // LEVEL 3: Temporal Fracture (BPM 142)
+      {
+        id: 3,
+        title: 'Temporal Fracture',
+        subtitle: 'Sector 03 · Chrono-Dilation & Wave Zigzag Vector',
+        difficulty: 'Hard',
+        stars: 3,
+        bpm: 142,
+        baseSpeed: 450,
+        length: 7400,
+        floorY: 100,
+        ceilingY: 420,
+        theme: {
+          bgGradient: ['#041019', '#0a2538'],
+          sunColors: ['#38bdf8', '#00f0ff'],
+          mountainColor: '#071a29',
+          ridgeColor: 'rgba(56, 189, 248, 0.45)',
+          gridColor: 'rgba(56, 189, 248, 0.16)',
+          ambientColor: '#38bdf8',
+          musicStyle: 'Fast-Tempo Glitch Electro',
+        },
+        objects: [
+          // Runway: x = 150 to 1250
+          { id: 'l3_b1', type: 'block', x: 1250, y: 0, w: 120, h: 45 },
+          { id: 'l3_s1', type: 'spike', x: 1420, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l3_jr1', type: 'jump_ring', x: 1480, y: 100, w: 44, h: 44, ringType: 'yellow' },
+          { id: 'l3_s2', type: 'spike', x: 1540, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Speed Gate (1.15x boost)
+          { id: 'l3_sg1', type: 'speed_gate', x: 1800, y: 0, w: 35, h: 420, speedMultiplier: 1.15 },
+
+          // Time Dilation Hazard Corridor (use [E] / [S] / [↓] to slow time!)
+          { id: 'l3_s3', type: 'spike', x: 2150, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l3_jr2', type: 'jump_ring', x: 2220, y: 95, w: 44, h: 44, ringType: 'purple' },
+          { id: 'l3_s4', type: 'spike', x: 2280, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          { id: 'l3_jp0', type: 'jump_pad', x: 2520, y: 0, w: 50, h: 15, padType: 'yellow' },
+          { id: 'l3_s5', type: 'spike', x: 2620, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l3_c1', type: 'coin', x: 2680, y: 140, w: 32, h: 32, coinIndex: 0 },
+
+          // Normalize speed before Wave Mode
+          { id: 'l3_sg2', type: 'speed_gate', x: 2900, y: 0, w: 35, h: 420, speedMultiplier: 1.0 },
+
+          // VEHICLE TRANSFORMATION: WAVE ZIGZAG MODE
+          { id: 'l3_pv1', type: 'portal_vehicle', x: 3050, y: 0, w: 45, h: 420, portalVehicle: 'wave' },
+
+          // Wave corridor: 45-degree zigzag path
+          { id: 'l3_b2', type: 'block', x: 3350, y: 0, w: 200, h: 90 },
+          { id: 'l3_b3', type: 'block', x: 3700, y: 330, w: 200, h: 90 },
+          { id: 'l3_c2', type: 'coin', x: 4000, y: 210, w: 32, h: 32, coinIndex: 1 },
+          { id: 'l3_b4', type: 'block', x: 4200, y: 0, w: 200, h: 100 },
+          { id: 'l3_b5', type: 'block', x: 4550, y: 320, w: 200, h: 100 },
+
+          // Gravity Inversion inside Wave mode
+          { id: 'l3_p_grav1', type: 'portal_gravity', x: 4900, y: 0, w: 45, h: 420, portalGravity: -1 },
+          { id: 'l3_b6', type: 'block', x: 5200, y: 330, w: 220, h: 90 },
+          { id: 'l3_b6b', type: 'block', x: 5550, y: 0, w: 220, h: 90 },
+
+          // Restore gravity and return to Cube mode
+          { id: 'l3_p_grav2', type: 'portal_gravity', x: 5900, y: 0, w: 45, h: 420, portalGravity: 1 },
+          { id: 'l3_pv2', type: 'portal_vehicle', x: 6050, y: 0, w: 45, h: 420, portalVehicle: 'cube' },
+
+          // Final rhythm staircase with Coin 3
+          { id: 'l3_b7', type: 'block', x: 6350, y: 0, w: 120, h: 45 },
+          { id: 'l3_b8', type: 'block', x: 6550, y: 0, w: 160, h: 90 },
+          { id: 'l3_c3', type: 'coin', x: 6630, y: 145, w: 32, h: 32, coinIndex: 2 },
+          { id: 'l3_jp1', type: 'jump_pad', x: 6850, y: 0, w: 50, h: 15, padType: 'yellow' },
+          { id: 'l3_b10', type: 'block', x: 7020, y: 0, w: 280, h: 45 },
+        ],
+      },
+
+      // LEVEL 4: Singularity Overdrive (BPM 150)
+      {
+        id: 4,
+        title: 'Singularity Overdrive',
+        subtitle: 'Sector 04 · GlitchVerse Singularity Core',
+        difficulty: 'Master',
+        stars: 4,
+        bpm: 150,
+        baseSpeed: 470,
+        length: 8000,
+        floorY: 100,
+        ceilingY: 420,
+        theme: {
+          bgGradient: ['#160410', '#2d0922'],
+          sunColors: ['#ffaa00', '#ff0055'],
+          mountainColor: '#220619',
+          ridgeColor: 'rgba(255, 170, 0, 0.45)',
+          gridColor: 'rgba(255, 170, 0, 0.18)',
+          ambientColor: '#ffaa00',
+          musicStyle: 'High-Octane Drum & Bass Rush',
+        },
+        objects: [
+          // Runway: x = 150 to 1250
+          { id: 'l4_s1', type: 'spike', x: 1250, y: 0, w: 40, h: 40, spikeDir: 'up' },
+          { id: 'l4_jr1', type: 'jump_ring', x: 1320, y: 95, w: 44, h: 44, ringType: 'yellow' },
+          { id: 'l4_s2', type: 'spike', x: 1390, y: 0, w: 40, h: 40, spikeDir: 'up' },
+
+          // Gravity Inversion Portal
+          { id: 'l4_p_grav0', type: 'portal_gravity', x: 1650, y: 0, w: 45, h: 420, portalGravity: -1 },
+          { id: 'l4_b1', type: 'block', x: 2020, y: 375, w: 160, h: 45 },
+
+          // Phase Shift while inverted
+          { id: 'l4_pg1', type: 'portal_phase', x: 2260, y: 0, w: 40, h: 420, phase: 'cyan' },
+          { id: 'l4_b2', type: 'block', x: 2450, y: 375, w: 180, h: 45, phase: 'cyan' },
+          { id: 'l4_s3', type: 'spike', x: 2680, y: 380, w: 40, h: 40, spikeDir: 'down', phase: 'magenta' },
+          { id: 'l4_c1', type: 'coin', x: 2800, y: 300, w: 32, h: 32, coinIndex: 0 },
+
+          // Restore gravity and switch to Glider/Ship
+          { id: 'l4_p_grav1', type: 'portal_gravity', x: 2980, y: 0, w: 45,
