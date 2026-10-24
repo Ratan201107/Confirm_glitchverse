@@ -1,0 +1,6 @@
+{
+  "name": "GlitchPulse: The Final Platform - Rhythm Dash",
+  "description": "Geometry Dash-inspired rhythm platformer featuring The Final Platform level with beat-synced obstacles, escalating difficulty, custom Dry Out menu soundtrack, and multi-vehicle mechanics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
